@@ -264,8 +264,16 @@ ipcMain.handle('set-always-on-top', (event, enabled) => {
 });
 
 ipcMain.handle('close-app', () => {
-  isQuitting = true;
-  app.quit();
+  // Hide to system tray instead of quitting
+  if (overlayWindow) {
+    overlayWindow.hide();
+    // Also hide secondary windows
+    secondaryWindows.forEach(win => {
+      if (win && !win.isDestroyed()) {
+        win.hide();
+      }
+    });
+  }
 });
 
 // Broadcast emoji to all secondary displays
