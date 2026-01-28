@@ -172,6 +172,45 @@ const FirebaseClient = {
   },
 
   /**
+   * Send a question to Firebase
+   * @param {string} question - The question text
+   * @returns {Promise<boolean>} - True if sent successfully
+   */
+  async sendQuestion(question) {
+    if (!this.db || !this.roomCode) {
+      console.error('Not connected to a room');
+      return false;
+    }
+
+    // Validate question
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion || trimmedQuestion.length < 2) {
+      console.error('Question too short');
+      return false;
+    }
+
+    if (trimmedQuestion.length > 200) {
+      console.error('Question too long');
+      return false;
+    }
+
+    const { ref, push } = window.firebaseModules;
+
+    try {
+      const questionsRef = ref(this.db, `rooms/${this.roomCode}/questions`);
+      await push(questionsRef, {
+        text: trimmedQuestion,
+        timestamp: Date.now(),
+        answered: false
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending question:', error);
+      return false;
+    }
+  },
+
+  /**
    * Send session feedback (rating and text) to Firebase
    * This is stored globally, not per room, so it persists
    * @param {number} rating - Star rating 1-5

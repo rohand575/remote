@@ -28,6 +28,11 @@ const App = {
   ratingText: null,
   selectedRating: 0,
 
+  // Question elements
+  questionInput: null,
+  sendQuestionBtn: null,
+  questionStatus: null,
+
   /**
    * Initialize the app
    */
@@ -54,6 +59,11 @@ const App = {
     this.submitFeedbackBtn = document.getElementById('submit-feedback');
     this.feedbackStatus = document.getElementById('feedback-status');
     this.ratingText = document.getElementById('rating-text');
+
+    // Question elements
+    this.questionInput = document.getElementById('question-input');
+    this.sendQuestionBtn = document.getElementById('send-question-btn');
+    this.questionStatus = document.getElementById('question-status');
 
     // Initialize modules
     Animations.init();
@@ -157,6 +167,19 @@ const App = {
     // Submit feedback
     if (this.submitFeedbackBtn) {
       this.submitFeedbackBtn.addEventListener('click', () => this.submitFeedback());
+    }
+
+    // Question input - send on click or Enter key
+    if (this.sendQuestionBtn) {
+      this.sendQuestionBtn.addEventListener('click', () => this.sendQuestion());
+    }
+    if (this.questionInput) {
+      this.questionInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.sendQuestion();
+        }
+      });
     }
   },
 
@@ -445,6 +468,69 @@ const App = {
     }
 
     this.submitFeedbackBtn.textContent = 'Submit Feedback';
+  },
+
+  /**
+   * Send a question to the presenter
+   */
+  async sendQuestion() {
+    if (!this.questionInput) return;
+
+    const question = this.questionInput.value.trim();
+    if (!question) {
+      this.showQuestionStatus('Please enter a question', 'error');
+      return;
+    }
+
+    if (question.length < 2) {
+      this.showQuestionStatus('Question too short', 'error');
+      return;
+    }
+
+    // Disable button while sending
+    if (this.sendQuestionBtn) {
+      this.sendQuestionBtn.disabled = true;
+    }
+
+    try {
+      const success = await FirebaseClient.sendQuestion(question);
+
+      if (success) {
+        this.questionInput.value = '';
+        this.showQuestionStatus('Question sent!', 'success');
+        // Show sent animation with question mark
+        Animations.showSent('❓');
+      } else {
+        this.showQuestionStatus('Failed to send', 'error');
+      }
+    } catch (error) {
+      console.error('Error sending question:', error);
+      this.showQuestionStatus('Failed to send', 'error');
+    } finally {
+      if (this.sendQuestionBtn) {
+        this.sendQuestionBtn.disabled = false;
+      }
+    }
+  },
+
+  /**
+   * Show question status message
+   * @param {string} message
+   * @param {string} type - 'success' or 'error'
+   */
+  showQuestionStatus(message, type) {
+    if (!this.questionStatus) return;
+
+    this.questionStatus.textContent = message;
+    this.questionStatus.className = `question-status ${type}`;
+
+    // Clear after 3 seconds
+    setTimeout(() => {
+      if (this.questionStatus) {
+        this.questionStatus.textContent = '';
+        this.questionStatus.className = 'question-status';
+      }
+    }, 3000);
   },
 
   /**

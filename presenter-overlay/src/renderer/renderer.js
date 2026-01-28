@@ -6,6 +6,7 @@
 const Renderer = {
   // Modules
   animator: null,
+  questionAnimator: null, // Separate animator for questions (left side)
   listener: null,
 
   // DOM Elements
@@ -24,6 +25,7 @@ const Renderer = {
   paceCount: { slow: 0, good: 0, fast: 0 },
   isListening: false,
   currentRoomCode: null,
+  reactionsEnabled: true, // Toggle for showing reactions on screen
 
   /**
    * Initialize the renderer
@@ -42,6 +44,7 @@ const Renderer = {
 
     // Initialize modules
     this.animator = new EmojiAnimator('#emoji-container');
+    this.questionAnimator = new EmojiAnimator('#questions-container'); // For question emoji on left
     this.listener = new FirebaseListener();
 
     // Set up event listeners
@@ -64,6 +67,11 @@ const Renderer = {
     // Set up pace feedback callback
     this.listener.setOnPaceFeedback((pace) => {
       this.handlePaceFeedback(pace);
+    });
+
+    // Set up question callback
+    this.listener.setOnQuestion((question) => {
+      this.handleQuestion(question);
     });
 
     this.listener.setOnStatusChange((connected) => {
@@ -162,6 +170,26 @@ const Renderer = {
       });
     }
 
+    // Reactions toggle
+    const reactionsToggle = document.getElementById('reactions-toggle');
+    if (reactionsToggle) {
+      reactionsToggle.addEventListener('change', (e) => {
+        this.reactionsEnabled = e.target.checked;
+        console.log('Reactions display:', this.reactionsEnabled ? 'enabled' : 'disabled');
+      });
+    }
+
+    // Clear questions button
+    const clearQuestionsBtn = document.getElementById('clear-questions-btn');
+    if (clearQuestionsBtn) {
+      clearQuestionsBtn.addEventListener('click', () => {
+        if (this.listener) {
+          this.listener.questions = [];
+          this.updateQuestionsDisplay();
+        }
+      });
+    }
+
     // Focus input when panel is shown
     this.roomInput.focus();
   },
@@ -230,15 +258,18 @@ const Renderer = {
    * @param {string} emoji
    */
   handleReaction(emoji) {
-    // Spawn floating emoji on primary display
-    this.animator.spawn(emoji);
+    // Only spawn if reactions are enabled
+    if (this.reactionsEnabled) {
+      // Spawn floating emoji on primary display
+      this.animator.spawn(emoji);
 
-    // Broadcast to secondary displays
-    if (window.electronAPI && window.electronAPI.broadcastEmoji) {
-      window.electronAPI.broadcastEmoji(emoji);
+      // Broadcast to secondary displays
+      if (window.electronAPI && window.electronAPI.broadcastEmoji) {
+        window.electronAPI.broadcastEmoji(emoji);
+      }
     }
 
-    // Update counter
+    // Always update counter (even if display is off)
     this.reactionCount++;
     this.updateCounter();
   },
@@ -256,8 +287,8 @@ const Renderer = {
     };
 
     const emoji = paceEmojis[pace];
-    if (emoji) {
-      // Spawn the pace emoji on primary display
+    if (emoji && this.reactionsEnabled) {
+      // Spawn the pace emoji on primary display (only if enabled)
       this.animator.spawn(emoji);
 
       // Broadcast to secondary displays
@@ -266,13 +297,27 @@ const Renderer = {
       }
     }
 
-    // Track pace counts
+    // Always track pace counts
     if (this.paceCount[pace] !== undefined) {
       this.paceCount[pace]++;
     }
 
     // Update pace display in status overlay if it's visible
     this.updatePaceDisplay();
+  },
+
+  /**
+   * Handle incoming question
+   * @param {Object} question - { id, text, timestamp, answered }
+   */
+  handleQuestion(question) {
+    // Spawn question emoji on LEFT side (always, regardless of reactionsEnabled)
+    if (this.questionAnimator) {
+      this.questionAnimator.spawn('❓');
+    }
+
+    // Update questions list in overlay
+    this.updateQuestionsDisplay();
   },
 
   /**
@@ -286,6 +331,51 @@ const Renderer = {
     if (slowEl) slowEl.textContent = this.paceCount.slow;
     if (goodEl) goodEl.textContent = this.paceCount.good;
     if (fastEl) fastEl.textContent = this.paceCount.fast;
+  },
+
+  /**
+   * Update questions display in status overlay
+   */
+  updateQuestionsDisplay() {
+    const questionsCountEl = document.getElementById('questions-count');
+    const questionsListEl = document.getElementById('questions-list');
+
+    if (!this.listener) return;
+
+    const questions = this.listener.getQuestions();
+
+    // Update count
+    if (questionsCountEl) {
+      questionsCountEl.textContent = questions.length;
+    }
+
+    // Update list
+    if (questionsListEl) {
+      if (questions.length === 0) {
+        questionsListEl.innerHTML = '<p class="questions-empty">No questions yet</p>';
+      } else {
+        questionsListEl.innerHTML = questions.map(q => `
+          <div class="question-item ${q.answered ? 'answered' : ''}" data-id="${q.id}">
+            <span class="question-item-icon">❓</span>
+            <span class="question-item-text">${this.escapeHtml(q.text)}</span>
+            <div class="question-item-actions">
+              ${!q.answered ? `<button class="btn-mark-answered" onclick="Renderer.markQuestionAnswered('${q.id}')">✓ Done</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  },
+
+  /**
+   * Mark a question as answered
+   * @param {string} questionId
+   */
+  async markQuestionAnswered(questionId) {
+    if (this.listener) {
+      await this.listener.markQuestionAnswered(questionId);
+      this.updateQuestionsDisplay();
+    }
   },
 
   /**
@@ -365,6 +455,7 @@ const Renderer = {
     const statusDotEl = document.getElementById('status-overlay-dot');
     const statusTextEl = document.getElementById('status-overlay-text');
     const reactionCountEl = document.getElementById('status-reaction-count');
+    const reactionsToggle = document.getElementById('reactions-toggle');
 
     if (roomCodeEl) {
       roomCodeEl.textContent = this.currentRoomCode ? this.currentRoomCode.toUpperCase() : '---';
@@ -379,8 +470,16 @@ const Renderer = {
       reactionCountEl.textContent = this.reactionCount;
     }
 
+    // Update reactions toggle state
+    if (reactionsToggle) {
+      reactionsToggle.checked = this.reactionsEnabled;
+    }
+
     // Update pace display
     this.updatePaceDisplay();
+
+    // Update questions display
+    this.updateQuestionsDisplay();
 
     this.statusOverlay.classList.remove('hidden');
 
@@ -427,6 +526,7 @@ const Renderer = {
     this.currentRoomCode = null;
     this.reactionCount = 0;
     this.paceCount = { slow: 0, good: 0, fast: 0 };
+    this.reactionsEnabled = true; // Reset toggle
 
     // Update counter display
     if (this.counterValue) {
@@ -434,6 +534,12 @@ const Renderer = {
     }
     if (this.reactionCounter) {
       this.reactionCounter.classList.add('hidden');
+    }
+
+    // Reset reactions toggle
+    const reactionsToggle = document.getElementById('reactions-toggle');
+    if (reactionsToggle) {
+      reactionsToggle.checked = true;
     }
 
     // Hide status overlay

@@ -9,10 +9,13 @@ class FirebaseListener {
     this.roomCode = null;
     this.unsubscribe = null;
     this.paceUnsubscribe = null;
+    this.questionsUnsubscribe = null;
     this.onReaction = null;
     this.onPaceFeedback = null;
+    this.onQuestion = null;
     this.onStatusChange = null;
     this.isConnected = false;
+    this.questions = []; // Store questions for display
 
     // Firebase SDK modules (loaded dynamically)
     this.firebase = null;
@@ -139,6 +142,38 @@ class FirebaseListener {
       console.error('Firebase pace listener error:', error);
     });
 
+    // Listen for questions
+    const questionsRef = query(
+      ref(this.db, `rooms/${this.roomCode}/questions`),
+      orderByChild('timestamp'),
+      startAt(startTime)
+    );
+
+    this.questionsUnsubscribe = onChildAdded(questionsRef, (snapshot) => {
+      const data = snapshot.val();
+      const id = snapshot.key;
+      if (data && data.text) {
+        console.log('Received question:', data.text);
+        // Store question with its ID
+        const question = {
+          id: id,
+          text: data.text,
+          timestamp: data.timestamp,
+          answered: data.answered || false
+        };
+        this.questions.unshift(question); // Add to beginning
+        // Keep only last 50 questions
+        if (this.questions.length > 50) {
+          this.questions.pop();
+        }
+        if (this.onQuestion) {
+          this.onQuestion(question);
+        }
+      }
+    }, (error) => {
+      console.error('Firebase questions listener error:', error);
+    });
+
     this.isConnected = true;
     if (this.onStatusChange) {
       this.onStatusChange(true);
@@ -154,6 +189,7 @@ class FirebaseListener {
       try {
         off(ref(this.db, `rooms/${this.roomCode}/reactions`));
         off(ref(this.db, `rooms/${this.roomCode}/pace`));
+        off(ref(this.db, `rooms/${this.roomCode}/questions`));
         // Remove host entry when leaving room
         remove(ref(this.db, `rooms/${this.roomCode}/host`));
       } catch (e) {
@@ -161,8 +197,10 @@ class FirebaseListener {
       }
       this.unsubscribe = null;
       this.paceUnsubscribe = null;
+      this.questionsUnsubscribe = null;
     }
     this.roomCode = null;
+    this.questions = [];
   }
 
   /**
@@ -182,11 +220,49 @@ class FirebaseListener {
   }
 
   /**
+   * Set callback for when a question is received
+   * @param {Function} callback - Called with question object { id, text, timestamp, answered }
+   */
+  setOnQuestion(callback) {
+    this.onQuestion = callback;
+  }
+
+  /**
    * Set callback for connection status changes
    * @param {Function} callback - Called with boolean connected status
    */
   setOnStatusChange(callback) {
     this.onStatusChange = callback;
+  }
+
+  /**
+   * Get all stored questions
+   * @returns {Array}
+   */
+  getQuestions() {
+    return this.questions;
+  }
+
+  /**
+   * Mark a question as answered
+   * @param {string} questionId
+   */
+  async markQuestionAnswered(questionId) {
+    if (!this.db || !this.roomCode) return;
+
+    const { ref, set } = this.firebase;
+    try {
+      const questionRef = ref(this.db, `rooms/${this.roomCode}/questions/${questionId}/answered`);
+      await set(questionRef, true);
+
+      // Update local state
+      const question = this.questions.find(q => q.id === questionId);
+      if (question) {
+        question.answered = true;
+      }
+    } catch (error) {
+      console.error('Error marking question as answered:', error);
+    }
   }
 
   /**

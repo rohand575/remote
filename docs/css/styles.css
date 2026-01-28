@@ -473,6 +473,100 @@ html, body {
   50% { opacity: 0.3; }
 }
 
+/* ===========================================
+   Ask a Question Section
+   =========================================== */
+
+.question-section {
+  padding: var(--spacing-md) 0;
+  border-top: 1px solid var(--border);
+}
+
+.question-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--spacing-sm);
+}
+
+.question-input-group {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.question-input {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.95rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+  box-shadow: var(--shadow-inset);
+  transition: all 0.3s ease;
+}
+
+.question-input::placeholder {
+  color: var(--text-muted);
+}
+
+.question-input:focus {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-inset), 0 0 0 3px var(--accent-glow);
+}
+
+.send-question-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.send-question-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.send-question-btn:active {
+  transform: translateY(0);
+}
+
+.send-question-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.send-icon {
+  font-size: 1.1rem;
+}
+
+.question-status {
+  font-size: 0.8rem;
+  text-align: center;
+  margin-top: var(--spacing-xs);
+  min-height: 1.2em;
+}
+
+.question-status.success {
+  color: var(--success);
+}
+
+.question-status.error {
+  color: #ef4444;
+}
+
 /* Feedback Section */
 .feedback-section {
   padding-top: var(--spacing-sm);

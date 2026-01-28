@@ -234,6 +234,19 @@ html, body {
    Emoji Container
    =========================================== */
 
+/* Questions Container (left side - for question emoji) */
+.questions-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 100;
+}
+
+/* Emoji Container (right side) */
 .emoji-container {
   position: fixed;
   top: 0;
@@ -463,6 +476,184 @@ html, body {
   font-size: 0.8rem;
   color: var(--text-secondary);
   opacity: 0.7;
+}
+
+/* ===========================================
+   Questions Section in Status Overlay
+   =========================================== */
+
+.questions-status {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.questions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.questions-status-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.btn-clear-questions {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-clear-questions:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.questions-list {
+  max-height: 200px;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.questions-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.questions-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.questions-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.questions-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 1rem;
+  font-style: italic;
+}
+
+.question-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.question-item:last-child {
+  margin-bottom: 0;
+}
+
+.question-item.answered {
+  opacity: 0.5;
+}
+
+.question-item-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.question-item-text {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.question-item-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.btn-mark-answered {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-mark-answered:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+/* ===========================================
+   Reactions Toggle
+   =========================================== */
+
+.reactions-toggle-section {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.toggle-label input:checked + .toggle-slider {
+  background: var(--success);
+}
+
+.toggle-label input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-text {
+  font-size: 0.9rem;
+  color: var(--text-primary);
 }
 
 /* Feedback Button in Status Actions */

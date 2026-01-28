@@ -41,7 +41,10 @@
     </div>
   </div>
 
-  <!-- Emoji Container (floating emojis appear here) -->
+  <!-- Questions Container (left side - just emoji) -->
+  <div id="questions-container" class="questions-container"></div>
+
+  <!-- Emoji Container (floating emojis appear here - right side) -->
   <div id="emoji-container" class="emoji-container"></div>
 
   <!-- Reaction Counter (optional, shows in corner) -->
@@ -91,6 +94,26 @@
             <span class="pace-stat-label">Too Fast</span>
           </div>
         </div>
+      </div>
+
+      <!-- Questions Section -->
+      <div class="questions-status">
+        <div class="questions-header">
+          <p class="questions-status-title">Questions (<span id="questions-count">0</span>)</p>
+          <button id="clear-questions-btn" class="btn-clear-questions">Clear All</button>
+        </div>
+        <div id="questions-list" class="questions-list">
+          <p class="questions-empty">No questions yet</p>
+        </div>
+      </div>
+
+      <!-- Reactions Toggle -->
+      <div class="reactions-toggle-section">
+        <label class="toggle-label">
+          <input type="checkbox" id="reactions-toggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-text">Show Reactions on Screen</span>
+        </label>
       </div>
 
       <div class="status-actions">

@@ -49,6 +49,26 @@
         <button id="leave-btn" class="leave-button">Leave</button>
       </div>
 
+      <!-- Workshop Pace Section (First) -->
+      <div class="pace-section">
+        <p class="pace-title">Workshop Pace</p>
+        <div class="pace-buttons">
+          <button class="pace-btn" data-pace="slow">
+            <span class="pace-icon">🐢</span>
+            <span class="pace-label">Too Slow</span>
+          </button>
+          <button class="pace-btn pace-btn-success" data-pace="good">
+            <span class="pace-icon">👍</span>
+            <span class="pace-label">Just Right</span>
+          </button>
+          <button class="pace-btn" data-pace="fast">
+            <span class="pace-icon">🐇</span>
+            <span class="pace-label">Too Fast</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Emoji Grid (Second) -->
       <div class="emoji-grid">
         <button class="emoji-btn" data-emoji="👏">
           <span class="emoji">👏</span>
@@ -76,23 +96,23 @@
         </button>
       </div>
 
-      <!-- Workshop Pace Section -->
-      <div class="pace-section">
-        <p class="pace-title">Workshop Pace</p>
-        <div class="pace-buttons">
-          <button class="pace-btn" data-pace="slow">
-            <span class="pace-icon">🐢</span>
-            <span class="pace-label">Too Slow</span>
-          </button>
-          <button class="pace-btn pace-btn-success" data-pace="good">
-            <span class="pace-icon">👍</span>
-            <span class="pace-label">Just Right</span>
-          </button>
-          <button class="pace-btn" data-pace="fast">
-            <span class="pace-icon">🐇</span>
-            <span class="pace-label">Too Fast</span>
+      <!-- Ask a Question Section (Third) -->
+      <div class="question-section">
+        <p class="question-title">Ask a Question</p>
+        <div class="question-input-group">
+          <input
+            type="text"
+            id="question-input"
+            class="question-input"
+            placeholder="Type your question..."
+            maxlength="200"
+            autocomplete="off"
+          >
+          <button id="send-question-btn" class="send-question-btn">
+            <span class="send-icon">➤</span>
           </button>
         </div>
+        <p id="question-status" class="question-status"></p>
       </div>
 
       <p class="tap-hint">Tap a button to react in real time</p>
@@ -102,7 +122,7 @@
         <span id="status-text">Connected</span>
       </div>
 
-      <!-- Feedback Section -->
+      <!-- Feedback Section (Fourth/Last) -->
       <div class="feedback-section">
         <button id="feedback-toggle" class="feedback-toggle">
           <span class="feedback-toggle-icon">⭐</span>
