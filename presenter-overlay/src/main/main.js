@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, globalShortcut } = require('electron');
 const path = require('path');
 const { createOverlayWindow } = require('./window');
 
@@ -30,6 +30,17 @@ app.whenReady().then(() => {
 
   // Create system tray
   createTray();
+
+  // Register global shortcut Ctrl+Shift+L to toggle status overlay
+  globalShortcut.register('Ctrl+Shift+L', () => {
+    if (overlayWindow) {
+      overlayWindow.webContents.send('toggle-status-overlay');
+      overlayWindow.show();
+      // Disable click-through when showing status overlay
+      overlayWindow.setIgnoreMouseEvents(false);
+      overlayWindow.isIgnoringMouseEvents = false;
+    }
+  });
 
   // Handle window close
   overlayWindow.on('closed', () => {
@@ -128,6 +139,11 @@ ipcMain.handle('set-always-on-top', (event, enabled) => {
 
 ipcMain.handle('close-app', () => {
   app.quit();
+});
+
+// Unregister shortcuts when quitting
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 // Quit when all windows are closed

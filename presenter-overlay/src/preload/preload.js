@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeApp: () => ipcRenderer.invoke('close-app'),
 
   /**
+   * Listen for toggle status overlay event (Ctrl+Shift+L)
+   * @param {Function} callback
+   */
+  onToggleStatusOverlay: (callback) => ipcRenderer.on('toggle-status-overlay', callback),
+
+  /**
    * Get platform info
    */
   platform: process.platform

@@ -49,6 +49,35 @@
     <span id="counter-value">0</span> reactions
   </div>
 
+  <!-- Status Overlay (shown with Ctrl+Shift+L) -->
+  <div id="status-overlay" class="status-overlay hidden">
+    <div class="status-card">
+      <h2>Live Reactions</h2>
+      <div class="status-info">
+        <div class="status-row">
+          <span class="status-label">Room:</span>
+          <span id="status-room-code" class="status-value">---</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Status:</span>
+          <span class="status-value">
+            <span id="status-overlay-dot" class="status-dot connected"></span>
+            <span id="status-overlay-text">Connected</span>
+          </span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">Reactions:</span>
+          <span id="status-reaction-count" class="status-value">0</span>
+        </div>
+      </div>
+      <div class="status-actions">
+        <button id="leave-room-btn" class="btn-leave">Leave Room</button>
+        <button id="close-status-btn" class="btn-close-status">Close</button>
+      </div>
+      <p class="status-hint">Press Ctrl+Shift+L or Escape to close</p>
+    </div>
+  </div>
+
   <script src="emoji-animator.js"></script>
   <script src="firebase-listener.js"></script>
   <script src="renderer.js"></script>

@@ -16,10 +16,12 @@ const Renderer = {
   statusText: null,
   counterValue: null,
   reactionCounter: null,
+  statusOverlay: null,
 
   // State
   reactionCount: 0,
   isListening: false,
+  currentRoomCode: null,
 
   /**
    * Initialize the renderer
@@ -33,6 +35,7 @@ const Renderer = {
     this.statusText = document.querySelector('.status-text');
     this.counterValue = document.getElementById('counter-value');
     this.reactionCounter = document.getElementById('reaction-counter');
+    this.statusOverlay = document.getElementById('status-overlay');
 
     // Initialize modules
     this.animator = new EmojiAnimator('#emoji-container');
@@ -98,14 +101,39 @@ const Renderer = {
       }
     });
 
-    // Escape key to show/hide setup panel
+    // Escape key to show/hide setup panel or close status overlay
     document.addEventListener('keydown', (e) => {
       console.log('Key pressed:', e.key);
       if (e.key === 'Escape') {
         e.preventDefault();
-        this.toggleSetupPanel();
+        // If status overlay is open, close it first
+        if (!this.statusOverlay.classList.contains('hidden')) {
+          this.hideStatusOverlay();
+        } else {
+          this.toggleSetupPanel();
+        }
       }
     });
+
+    // Status overlay buttons
+    const leaveRoomBtn = document.getElementById('leave-room-btn');
+    if (leaveRoomBtn) {
+      leaveRoomBtn.addEventListener('click', () => this.leaveRoom());
+    }
+
+    const closeStatusBtn = document.getElementById('close-status-btn');
+    if (closeStatusBtn) {
+      closeStatusBtn.addEventListener('click', () => this.hideStatusOverlay());
+    }
+
+    // Listen for Ctrl+Shift+L from main process
+    if (window.electronAPI && window.electronAPI.onToggleStatusOverlay) {
+      window.electronAPI.onToggleStatusOverlay(() => {
+        if (this.isListening) {
+          this.toggleStatusOverlay();
+        }
+      });
+    }
 
     // Focus input when panel is shown
     this.roomInput.focus();
@@ -151,6 +179,7 @@ const Renderer = {
     try {
       await this.listener.listenToRoom(roomCode);
       this.isListening = true;
+      this.currentRoomCode = roomCode;
       this.updateStatus(`Connected to ${roomCode.toUpperCase()}`, true);
 
       // Hide setup panel and enable click-through
@@ -248,6 +277,91 @@ const Renderer = {
     } else if (this.isListening) {
       this.hideSetupPanel();
     }
+  },
+
+  /**
+   * Show the status overlay (Ctrl+Shift+L)
+   */
+  showStatusOverlay() {
+    // Update status overlay content
+    const roomCodeEl = document.getElementById('status-room-code');
+    const statusDotEl = document.getElementById('status-overlay-dot');
+    const statusTextEl = document.getElementById('status-overlay-text');
+    const reactionCountEl = document.getElementById('status-reaction-count');
+
+    if (roomCodeEl) {
+      roomCodeEl.textContent = this.currentRoomCode ? this.currentRoomCode.toUpperCase() : '---';
+    }
+    if (statusDotEl) {
+      statusDotEl.classList.toggle('connected', this.isListening);
+    }
+    if (statusTextEl) {
+      statusTextEl.textContent = this.isListening ? 'Connected' : 'Disconnected';
+    }
+    if (reactionCountEl) {
+      reactionCountEl.textContent = this.reactionCount;
+    }
+
+    this.statusOverlay.classList.remove('hidden');
+
+    // Disable click-through mode
+    if (window.electronAPI) {
+      window.electronAPI.setClickThrough(false);
+    }
+  },
+
+  /**
+   * Hide the status overlay
+   */
+  hideStatusOverlay() {
+    this.statusOverlay.classList.add('hidden');
+
+    // Re-enable click-through mode if listening
+    if (this.isListening && window.electronAPI) {
+      window.electronAPI.setClickThrough(true);
+    }
+  },
+
+  /**
+   * Toggle status overlay visibility
+   */
+  toggleStatusOverlay() {
+    if (this.statusOverlay.classList.contains('hidden')) {
+      this.showStatusOverlay();
+    } else {
+      this.hideStatusOverlay();
+    }
+  },
+
+  /**
+   * Leave the current room and go back to setup panel
+   */
+  leaveRoom() {
+    // Stop listening to Firebase
+    if (this.listener) {
+      this.listener.stopListening();
+    }
+
+    // Reset state
+    this.isListening = false;
+    this.currentRoomCode = null;
+    this.reactionCount = 0;
+
+    // Update counter display
+    if (this.counterValue) {
+      this.counterValue.textContent = '0';
+    }
+    if (this.reactionCounter) {
+      this.reactionCounter.classList.add('hidden');
+    }
+
+    // Hide status overlay
+    this.statusOverlay.classList.add('hidden');
+
+    // Show setup panel
+    this.showSetupPanel();
+    this.roomInput.value = '';
+    this.updateStatus('Ready', false);
   },
 
   /**
