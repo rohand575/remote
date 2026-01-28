@@ -214,7 +214,11 @@ const App = {
       // Switch to reactions screen
       this.connectScreen.classList.add('hidden');
       this.reactionsScreen.classList.remove('hidden');
-      this.roomName.textContent = `Room: ${roomCode.toUpperCase()}`;
+
+      // Update room badge with room code (keep the status part)
+      const badgeStatus = document.getElementById('badge-status');
+      const badgeSeparator = document.querySelector('.badge-separator');
+      this.roomName.innerHTML = `Room: ${roomCode.toUpperCase()} <span class="badge-separator">•</span> <span id="badge-status">${badgeStatus ? badgeStatus.textContent : 'Connected'}</span>`;
 
       // Update status
       this.updateStatus(true);
@@ -292,14 +296,24 @@ const App = {
    * @param {boolean} connected
    */
   updateStatus(connected) {
+    const badgeStatus = document.getElementById('badge-status');
+
     if (connected) {
       this.statusText.textContent = 'Connected';
       this.statusDot.classList.add('connected');
       this.statusDot.classList.remove('disconnected');
+      if (badgeStatus) {
+        badgeStatus.textContent = 'Connected';
+        badgeStatus.classList.remove('disconnected');
+      }
     } else {
       this.statusText.textContent = 'Reconnecting...';
       this.statusDot.classList.remove('connected');
       this.statusDot.classList.add('disconnected');
+      if (badgeStatus) {
+        badgeStatus.textContent = 'Reconnecting...';
+        badgeStatus.classList.add('disconnected');
+      }
     }
   },
 

@@ -1,5 +1,1 @@
-1. i want to implement this functionality on my remote.rohan-dhanawade.de webpage "Workshop Pace", where there are three buttons : Too slow, Just right, Too Fast.
-2. Add a good icon to the .exe file and when the app is running and sitting in tray
-3. in the frontend webpage, Add a feedback section, where users can give stars out of 5. and also a textbox saying "any suggestions or feedback?" 
-4. In Firebase, delete the reactions data after few days, but only keep the feedback ratings, and any feedback texts which are visible to me when i press ctrl+shift+L, somewhere below the current leave room and stuff, add the Feedbacks link, so when i click on it a new overlay appears with average feedback ratings and scrollable feedback texts, also option to go to previous screen and a button to close the overlay.
-Add a functionality, like suppose i am using two screens, and i have extended the displays, so when i run the app the overlays and dilaog boxes should appear only on the primary screen, and only the reactions should appear on both the screens. so when i press ctrl+shift+L, the overlay of rooms, feedback etc everything should appear only on the primary screen
+When i press Ctrl+Shift+L, i should get an option to turn off the reactions on screen.

@@ -5,6 +5,7 @@ const { createOverlayWindow, createSecondaryOverlayWindows, getDisplaysInfo } = 
 let overlayWindow = null;
 let secondaryWindows = [];
 let tray = null;
+let isQuitting = false; // Flag to track if app is actually quitting
 
 // Disable hardware acceleration for transparent windows on Windows
 // Must be called before app is ready
@@ -26,6 +27,18 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
+  // Enable auto-start with Windows (only for packaged app)
+  if (app.isPackaged) {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: app.getPath('exe'),
+      args: ['--hidden'] // Start minimized to tray
+    });
+  }
+
+  // Check if started with --hidden flag (auto-start)
+  const startHidden = process.argv.includes('--hidden');
+
   // Create the primary overlay window (on primary display)
   overlayWindow = createOverlayWindow();
 
@@ -47,7 +60,21 @@ app.whenReady().then(() => {
     }
   });
 
-  // Handle window close
+  // Hide window instead of closing when X is clicked (minimize to tray)
+  overlayWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      overlayWindow.hide();
+      // Also hide secondary windows
+      secondaryWindows.forEach(win => {
+        if (win && !win.isDestroyed()) {
+          win.hide();
+        }
+      });
+    }
+  });
+
+  // Handle window actually closed (when quitting)
   overlayWindow.on('closed', () => {
     overlayWindow = null;
     // Also close secondary windows
@@ -58,6 +85,16 @@ app.whenReady().then(() => {
     });
     secondaryWindows = [];
   });
+
+  // If started with --hidden flag, hide the window after creation
+  if (startHidden) {
+    overlayWindow.hide();
+    secondaryWindows.forEach(win => {
+      if (win && !win.isDestroyed()) {
+        win.hide();
+      }
+    });
+  }
 
   // Listen for display changes (monitor connected/disconnected)
   screen.on('display-added', () => {
@@ -116,12 +153,26 @@ function createTray() {
 
   tray = new Tray(icon);
 
+  // Get current auto-start status
+  const getAutoStartEnabled = () => {
+    if (app.isPackaged) {
+      return app.getLoginItemSettings().openAtLogin;
+    }
+    return false;
+  };
+
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show Overlay',
       click: () => {
         if (overlayWindow) {
           overlayWindow.show();
+          // Also show secondary windows
+          secondaryWindows.forEach(win => {
+            if (win && !win.isDestroyed()) {
+              win.show();
+            }
+          });
         }
       }
     },
@@ -137,8 +188,24 @@ function createTray() {
     },
     { type: 'separator' },
     {
+      label: 'Start with Windows',
+      type: 'checkbox',
+      checked: getAutoStartEnabled(),
+      click: (menuItem) => {
+        if (app.isPackaged) {
+          app.setLoginItemSettings({
+            openAtLogin: menuItem.checked,
+            path: app.getPath('exe'),
+            args: menuItem.checked ? ['--hidden'] : []
+          });
+        }
+      }
+    },
+    { type: 'separator' },
+    {
       label: 'Quit',
       click: () => {
+        isQuitting = true;
         app.quit();
       }
     }
@@ -197,6 +264,7 @@ ipcMain.handle('set-always-on-top', (event, enabled) => {
 });
 
 ipcMain.handle('close-app', () => {
+  isQuitting = true;
   app.quit();
 });
 
@@ -209,16 +277,20 @@ ipcMain.handle('broadcast-emoji', (event, emoji) => {
   });
 });
 
+// Set isQuitting flag before quit
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 // Unregister shortcuts when quitting
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
 
-// Quit when all windows are closed
+// Don't quit when all windows are closed - keep running in tray
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // Do nothing - app stays in system tray
+  // Only quit via tray menu "Quit" option
 });
 
 app.on('activate', () => {
