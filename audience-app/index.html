@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="description" content="Send live reactions during presentations">
+  <title>Live Reactions</title>
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getDatabase, ref, push, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+    window.firebaseModules = { initializeApp, getDatabase, ref, push, serverTimestamp };
+  </script>
+</head>
+<body>
+  <div class="container">
+    <!-- Connection Screen -->
+    <div id="connect-screen" class="screen">
+      <div class="logo">
+        <span class="logo-emoji">🎭</span>
+        <h1>Live Reactions</h1>
+        <p class="tagline">React to the presentation in real-time</p>
+      </div>
+
+      <div class="room-input-container">
+        <input
+          type="text"
+          id="room-code-input"
+          placeholder="Enter room code"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+        >
+        <button id="join-btn" class="join-button">
+          Join Room
+        </button>
+      </div>
+
+      <p class="hint">Ask the presenter for the room code</p>
+    </div>
+
+    <!-- Reactions Screen -->
+    <div id="reactions-screen" class="screen hidden">
+      <div class="room-header">
+        <span id="room-name" class="room-badge">Room: ---</span>
+        <button id="leave-btn" class="leave-button">Leave</button>
+      </div>
+
+      <div class="emoji-grid">
+        <button class="emoji-btn" data-emoji="👏">
+          <span class="emoji">👏</span>
+          <span class="label">Applause</span>
+        </button>
+        <button class="emoji-btn" data-emoji="🔥">
+          <span class="emoji">🔥</span>
+          <span class="label">Excited</span>
+        </button>
+        <button class="emoji-btn" data-emoji="🤯">
+          <span class="emoji">🤯</span>
+          <span class="label">Mind-blown</span>
+        </button>
+        <button class="emoji-btn" data-emoji="❓">
+          <span class="emoji">❓</span>
+          <span class="label">Confused</span>
+        </button>
+        <button class="emoji-btn" data-emoji="❤️">
+          <span class="emoji">❤️</span>
+          <span class="label">Love</span>
+        </button>
+        <button class="emoji-btn" data-emoji="😂">
+          <span class="emoji">😂</span>
+          <span class="label">Funny</span>
+        </button>
+      </div>
+
+      <div id="status-bar" class="status-bar">
+        <span class="status-dot connected"></span>
+        <span id="status-text">Connected</span>
+      </div>
+    </div>
+
+    <!-- Sent Animation Overlay -->
+    <div id="sent-overlay" class="sent-overlay hidden">
+      <span id="sent-emoji" class="sent-emoji"></span>
+    </div>
+  </div>
+
+  <script src="js/animations.js"></script>
+  <script src="js/firebase-client.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

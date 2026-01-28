@@ -1,0 +1,50 @@
+{
+  "name": "live-reactions-presenter",
+  "version": "1.0.0",
+  "description": "Transparent overlay for displaying live audience reactions",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.livereactions.presenter",
+    "productName": "Live Reactions",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ]
+  },
+  "keywords": [
+    "presentations",
+    "reactions",
+    "live",
+    "overlay"
+  ],
+  "author": "Rohan Dhanawade",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "firebase": "^10.7.1"
+  }
+}
