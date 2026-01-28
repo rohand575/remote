@@ -70,11 +70,92 @@
           <span id="status-reaction-count" class="status-value">0</span>
         </div>
       </div>
+
+      <!-- Workshop Pace Section -->
+      <div class="pace-status">
+        <p class="pace-status-title">Workshop Pace</p>
+        <div class="pace-stats">
+          <div class="pace-stat">
+            <span class="pace-stat-icon">🐢</span>
+            <span id="pace-slow-count" class="pace-stat-count">0</span>
+            <span class="pace-stat-label">Too Slow</span>
+          </div>
+          <div class="pace-stat pace-stat-good">
+            <span class="pace-stat-icon">👍</span>
+            <span id="pace-good-count" class="pace-stat-count">0</span>
+            <span class="pace-stat-label">Just Right</span>
+          </div>
+          <div class="pace-stat">
+            <span class="pace-stat-icon">🐇</span>
+            <span id="pace-fast-count" class="pace-stat-count">0</span>
+            <span class="pace-stat-label">Too Fast</span>
+          </div>
+        </div>
+      </div>
+
       <div class="status-actions">
+        <button id="view-feedback-btn" class="btn-feedback">View Feedback</button>
         <button id="leave-room-btn" class="btn-leave">Leave Room</button>
         <button id="close-status-btn" class="btn-close-status">Close</button>
       </div>
       <p class="status-hint">Press Ctrl+Shift+L or Escape to close</p>
+    </div>
+  </div>
+
+  <!-- Feedback Overlay -->
+  <div id="feedback-overlay" class="feedback-overlay hidden">
+    <div class="feedback-card">
+      <button id="feedback-back-btn" class="feedback-back-btn">← Back</button>
+      <button id="feedback-close-btn" class="feedback-close-btn">✕</button>
+      <h2>Session Feedback</h2>
+
+      <div class="feedback-stats">
+        <div class="feedback-stat-main">
+          <span id="feedback-avg-rating" class="feedback-avg-rating">-</span>
+          <div class="feedback-stars" id="feedback-stars">
+            <span class="star-display">☆</span>
+            <span class="star-display">☆</span>
+            <span class="star-display">☆</span>
+            <span class="star-display">☆</span>
+            <span class="star-display">☆</span>
+          </div>
+          <span id="feedback-total-count" class="feedback-total">0 reviews</span>
+        </div>
+        <div class="feedback-distribution">
+          <div class="rating-bar">
+            <span class="rating-label">5</span>
+            <div class="rating-bar-track"><div id="rating-bar-5" class="rating-bar-fill"></div></div>
+            <span id="rating-count-5" class="rating-count">0</span>
+          </div>
+          <div class="rating-bar">
+            <span class="rating-label">4</span>
+            <div class="rating-bar-track"><div id="rating-bar-4" class="rating-bar-fill"></div></div>
+            <span id="rating-count-4" class="rating-count">0</span>
+          </div>
+          <div class="rating-bar">
+            <span class="rating-label">3</span>
+            <div class="rating-bar-track"><div id="rating-bar-3" class="rating-bar-fill"></div></div>
+            <span id="rating-count-3" class="rating-count">0</span>
+          </div>
+          <div class="rating-bar">
+            <span class="rating-label">2</span>
+            <div class="rating-bar-track"><div id="rating-bar-2" class="rating-bar-fill"></div></div>
+            <span id="rating-count-2" class="rating-count">0</span>
+          </div>
+          <div class="rating-bar">
+            <span class="rating-label">1</span>
+            <div class="rating-bar-track"><div id="rating-bar-1" class="rating-bar-fill"></div></div>
+            <span id="rating-count-1" class="rating-count">0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="feedback-comments-section">
+        <h3>Recent Comments</h3>
+        <div id="feedback-comments" class="feedback-comments">
+          <p class="feedback-loading">Loading feedback...</p>
+        </div>
+      </div>
     </div>
   </div>
 

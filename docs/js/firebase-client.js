@@ -128,6 +128,84 @@ const FirebaseClient = {
    */
   getConnectionStatus() {
     return this.isConnected;
+  },
+
+  /**
+   * Send pace feedback to Firebase
+   * @param {string} pace - The pace feedback (slow, good, fast)
+   * @returns {Promise<boolean>} - True if sent successfully
+   */
+  async sendPaceFeedback(pace) {
+    if (!this.db || !this.roomCode) {
+      console.error('Not connected to a room');
+      return false;
+    }
+
+    // Debounce rapid taps
+    const now = Date.now();
+    if (now - this.lastSentTime < this.DEBOUNCE_MS) {
+      console.log('Rate limited - too fast');
+      return false;
+    }
+    this.lastSentTime = now;
+
+    // Validate pace
+    const validPaces = ['slow', 'good', 'fast'];
+    if (!validPaces.includes(pace)) {
+      console.error('Invalid pace:', pace);
+      return false;
+    }
+
+    const { ref, push } = window.firebaseModules;
+
+    try {
+      const paceRef = ref(this.db, `rooms/${this.roomCode}/pace`);
+      await push(paceRef, {
+        pace: pace,
+        timestamp: Date.now()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending pace feedback:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Send session feedback (rating and text) to Firebase
+   * This is stored globally, not per room, so it persists
+   * @param {number} rating - Star rating 1-5
+   * @param {string} text - Optional feedback text
+   * @returns {Promise<boolean>} - True if sent successfully
+   */
+  async sendFeedback(rating, text = '') {
+    if (!this.db) {
+      console.error('Firebase not initialized');
+      return false;
+    }
+
+    // Validate rating
+    if (rating < 1 || rating > 5) {
+      console.error('Invalid rating:', rating);
+      return false;
+    }
+
+    const { ref, push } = window.firebaseModules;
+
+    try {
+      // Store feedback in a global 'feedback' collection (persists even when room is deleted)
+      const feedbackRef = ref(this.db, 'feedback');
+      await push(feedbackRef, {
+        rating: rating,
+        text: text.trim().slice(0, 500), // Limit text length
+        roomCode: this.roomCode || 'unknown',
+        timestamp: Date.now()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending feedback:', error);
+      return false;
+    }
   }
 };
 

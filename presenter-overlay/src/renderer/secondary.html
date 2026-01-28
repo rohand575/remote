@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://*.googleapis.com https://*.gstatic.com https://*.firebaseio.com wss://*.firebaseio.com; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com;">
+  <title>Live Reactions - Secondary Display</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+
+    /* Emoji container spans the entire screen */
+    .emoji-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 100;
+    }
+
+    /* Individual floating emoji */
+    .floating-emoji {
+      position: absolute;
+      font-size: 48px;
+      line-height: 1;
+      pointer-events: none;
+      will-change: transform, opacity;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+    }
+  </style>
+</head>
+<body>
+  <!-- Secondary display only shows floating emojis -->
+  <div id="emoji-container" class="emoji-container"></div>
+
+  <script src="emoji-animator.js"></script>
+  <script>
+    /**
+     * Secondary Display Renderer
+     * Only handles emoji animations, no UI elements
+     */
+    const SecondaryRenderer = {
+      animator: null,
+
+      init() {
+        this.animator = new EmojiAnimator('#emoji-container');
+        console.log('Secondary display renderer initialized');
+
+        // Listen for emoji events from main process
+        if (window.electronAPI && window.electronAPI.onSpawnEmoji) {
+          window.electronAPI.onSpawnEmoji((emoji) => {
+            this.animator.spawn(emoji);
+          });
+        }
+      },
+
+      /**
+       * Spawn an emoji animation
+       * @param {string} emoji
+       */
+      spawnEmoji(emoji) {
+        if (this.animator) {
+          this.animator.spawn(emoji);
+        }
+      }
+    };
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      SecondaryRenderer.init();
+      window.SecondaryRenderer = SecondaryRenderer;
+    });
+  </script>
+</body>
+</html>

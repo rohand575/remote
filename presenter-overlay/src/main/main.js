@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, globalShortcut, screen } = require('electron');
 const path = require('path');
-const { createOverlayWindow } = require('./window');
+const { createOverlayWindow, createSecondaryOverlayWindows, getDisplaysInfo } = require('./window');
 
 let overlayWindow = null;
+let secondaryWindows = [];
 let tray = null;
 
 // Disable hardware acceleration for transparent windows on Windows
@@ -25,8 +26,12 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
-  // Create the overlay window
+  // Create the primary overlay window (on primary display)
   overlayWindow = createOverlayWindow();
+
+  // Create secondary overlay windows (on extended displays)
+  secondaryWindows = createSecondaryOverlayWindows();
+  console.log(`Created ${secondaryWindows.length} secondary display windows`);
 
   // Create system tray
   createTray();
@@ -45,15 +50,69 @@ app.whenReady().then(() => {
   // Handle window close
   overlayWindow.on('closed', () => {
     overlayWindow = null;
+    // Also close secondary windows
+    secondaryWindows.forEach(win => {
+      if (win && !win.isDestroyed()) {
+        win.close();
+      }
+    });
+    secondaryWindows = [];
+  });
+
+  // Listen for display changes (monitor connected/disconnected)
+  screen.on('display-added', () => {
+    console.log('Display added, recreating secondary windows');
+    recreateSecondaryWindows();
+  });
+
+  screen.on('display-removed', () => {
+    console.log('Display removed, recreating secondary windows');
+    recreateSecondaryWindows();
   });
 });
+
+/**
+ * Recreate secondary windows when display configuration changes
+ */
+function recreateSecondaryWindows() {
+  // Close existing secondary windows
+  secondaryWindows.forEach(win => {
+    if (win && !win.isDestroyed()) {
+      win.close();
+    }
+  });
+
+  // Create new secondary windows
+  secondaryWindows = createSecondaryOverlayWindows();
+  console.log(`Recreated ${secondaryWindows.length} secondary display windows`);
+}
 
 /**
  * Create the system tray icon and menu
  */
 function createTray() {
-  // Create a simple tray icon
-  const icon = createDefaultIcon();
+  // Load tray icon from file
+  let icon;
+  const iconPath = path.join(__dirname, '../../assets/icon.ico');
+  const pngPath = path.join(__dirname, '../../assets/icon-32.png');
+
+  try {
+    // Try ICO first (Windows), then PNG (macOS/Linux)
+    if (process.platform === 'win32') {
+      icon = nativeImage.createFromPath(iconPath);
+    } else {
+      icon = nativeImage.createFromPath(pngPath);
+    }
+
+    // Fallback to default if file doesn't exist or is empty
+    if (icon.isEmpty()) {
+      console.log('Icon file not found or empty, using default');
+      icon = createDefaultIcon();
+    }
+  } catch (e) {
+    console.log('Failed to load icon, using default:', e);
+    icon = createDefaultIcon();
+  }
 
   tray = new Tray(icon);
 
@@ -139,6 +198,15 @@ ipcMain.handle('set-always-on-top', (event, enabled) => {
 
 ipcMain.handle('close-app', () => {
   app.quit();
+});
+
+// Broadcast emoji to all secondary displays
+ipcMain.handle('broadcast-emoji', (event, emoji) => {
+  secondaryWindows.forEach(win => {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send('spawn-emoji', emoji);
+    }
+  });
 });
 
 // Unregister shortcuts when quitting

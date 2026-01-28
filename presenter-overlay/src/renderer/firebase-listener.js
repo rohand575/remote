@@ -8,7 +8,9 @@ class FirebaseListener {
     this.db = null;
     this.roomCode = null;
     this.unsubscribe = null;
+    this.paceUnsubscribe = null;
     this.onReaction = null;
+    this.onPaceFeedback = null;
     this.onStatusChange = null;
     this.isConnected = false;
 
@@ -33,11 +35,12 @@ class FirebaseListener {
         onChildAdded,
         off,
         set,
+        get,
         remove,
         onDisconnect
       } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
 
-      this.firebase = { initializeApp, getDatabase, ref, query, orderByChild, startAt, onChildAdded, off, set, remove, onDisconnect };
+      this.firebase = { initializeApp, getDatabase, ref, query, orderByChild, startAt, onChildAdded, off, set, get, remove, onDisconnect };
 
       // Firebase config - same as audience app
       const firebaseConfig = {
@@ -117,6 +120,25 @@ class FirebaseListener {
       }
     });
 
+    // Listen for pace feedback
+    const paceRef = query(
+      ref(this.db, `rooms/${this.roomCode}/pace`),
+      orderByChild('timestamp'),
+      startAt(startTime)
+    );
+
+    this.paceUnsubscribe = onChildAdded(paceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data && data.pace) {
+        console.log('Received pace feedback:', data.pace);
+        if (this.onPaceFeedback) {
+          this.onPaceFeedback(data.pace);
+        }
+      }
+    }, (error) => {
+      console.error('Firebase pace listener error:', error);
+    });
+
     this.isConnected = true;
     if (this.onStatusChange) {
       this.onStatusChange(true);
@@ -131,12 +153,14 @@ class FirebaseListener {
       const { ref, off, remove } = this.firebase;
       try {
         off(ref(this.db, `rooms/${this.roomCode}/reactions`));
+        off(ref(this.db, `rooms/${this.roomCode}/pace`));
         // Remove host entry when leaving room
         remove(ref(this.db, `rooms/${this.roomCode}/host`));
       } catch (e) {
         console.log('Error unsubscribing:', e);
       }
       this.unsubscribe = null;
+      this.paceUnsubscribe = null;
     }
     this.roomCode = null;
   }
@@ -147,6 +171,14 @@ class FirebaseListener {
    */
   setOnReaction(callback) {
     this.onReaction = callback;
+  }
+
+  /**
+   * Set callback for when pace feedback is received
+   * @param {Function} callback - Called with pace string (slow, good, fast)
+   */
+  setOnPaceFeedback(callback) {
+    this.onPaceFeedback = callback;
   }
 
   /**
@@ -171,6 +203,65 @@ class FirebaseListener {
    */
   getRoomCode() {
     return this.roomCode;
+  }
+
+  /**
+   * Get feedback statistics from Firebase
+   * @returns {Promise<Object>} Feedback stats object
+   */
+  async getFeedbackStats() {
+    if (!this.db) {
+      throw new Error('Firebase not initialized');
+    }
+
+    const { ref, get } = this.firebase;
+
+    try {
+      const feedbackRef = ref(this.db, 'feedback');
+      const snapshot = await get(feedbackRef);
+
+      if (!snapshot.exists()) {
+        return null;
+      }
+
+      const feedback = snapshot.val();
+      const feedbackArray = Object.values(feedback);
+      const totalCount = feedbackArray.length;
+
+      // Calculate average rating
+      const totalRating = feedbackArray.reduce((sum, f) => sum + (f.rating || 0), 0);
+      const averageRating = totalCount > 0 ? totalRating / totalCount : 0;
+
+      // Rating distribution
+      const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      feedbackArray.forEach(f => {
+        if (f.rating >= 1 && f.rating <= 5) {
+          ratingDistribution[f.rating]++;
+        }
+      });
+
+      // Get recent feedback with text (last 50)
+      const recentFeedback = feedbackArray
+        .filter(f => f.text && f.text.trim().length > 0)
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+        .slice(0, 50)
+        .map(f => ({
+          rating: f.rating,
+          text: f.text,
+          timestamp: f.timestamp
+        }));
+
+      return {
+        totalCount,
+        averageRating,
+        ratingDistribution,
+        recentFeedback
+      };
+
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+      throw error;
+    }
   }
 }
 

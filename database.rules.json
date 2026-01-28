@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "rooms": {
+      ".read": true,
+      ".write": true,
+      "$roomCode": {
+        "host": {
+          ".read": true,
+          ".write": true
+        },
+        "reactions": {
+          ".read": true,
+          ".write": true,
+          ".indexOn": ["timestamp"]
+        },
+        "pace": {
+          ".read": true,
+          ".write": true,
+          ".indexOn": ["timestamp"]
+        }
+      }
+    },
+    "feedback": {
+      ".read": true,
+      ".write": true,
+      ".indexOn": ["timestamp", "rating"]
+    }
+  }
+}

@@ -17,9 +17,11 @@ const Renderer = {
   counterValue: null,
   reactionCounter: null,
   statusOverlay: null,
+  feedbackOverlay: null,
 
   // State
   reactionCount: 0,
+  paceCount: { slow: 0, good: 0, fast: 0 },
   isListening: false,
   currentRoomCode: null,
 
@@ -36,6 +38,7 @@ const Renderer = {
     this.counterValue = document.getElementById('counter-value');
     this.reactionCounter = document.getElementById('reaction-counter');
     this.statusOverlay = document.getElementById('status-overlay');
+    this.feedbackOverlay = document.getElementById('feedback-overlay');
 
     // Initialize modules
     this.animator = new EmojiAnimator('#emoji-container');
@@ -56,6 +59,11 @@ const Renderer = {
     // Set up reaction callback
     this.listener.setOnReaction((emoji) => {
       this.handleReaction(emoji);
+    });
+
+    // Set up pace feedback callback
+    this.listener.setOnPaceFeedback((pace) => {
+      this.handlePaceFeedback(pace);
     });
 
     this.listener.setOnStatusChange((connected) => {
@@ -101,13 +109,15 @@ const Renderer = {
       }
     });
 
-    // Escape key to show/hide setup panel or close status overlay
+    // Escape key to show/hide setup panel or close overlays
     document.addEventListener('keydown', (e) => {
       console.log('Key pressed:', e.key);
       if (e.key === 'Escape') {
         e.preventDefault();
-        // If status overlay is open, close it first
-        if (!this.statusOverlay.classList.contains('hidden')) {
+        // Close feedback overlay first if open
+        if (this.feedbackOverlay && !this.feedbackOverlay.classList.contains('hidden')) {
+          this.hideFeedbackOverlay();
+        } else if (!this.statusOverlay.classList.contains('hidden')) {
           this.hideStatusOverlay();
         } else {
           this.toggleSetupPanel();
@@ -124,6 +134,23 @@ const Renderer = {
     const closeStatusBtn = document.getElementById('close-status-btn');
     if (closeStatusBtn) {
       closeStatusBtn.addEventListener('click', () => this.hideStatusOverlay());
+    }
+
+    // View feedback button
+    const viewFeedbackBtn = document.getElementById('view-feedback-btn');
+    if (viewFeedbackBtn) {
+      viewFeedbackBtn.addEventListener('click', () => this.showFeedbackOverlay());
+    }
+
+    // Feedback overlay buttons
+    const feedbackBackBtn = document.getElementById('feedback-back-btn');
+    if (feedbackBackBtn) {
+      feedbackBackBtn.addEventListener('click', () => this.hideFeedbackOverlay());
+    }
+
+    const feedbackCloseBtn = document.getElementById('feedback-close-btn');
+    if (feedbackCloseBtn) {
+      feedbackCloseBtn.addEventListener('click', () => this.closeFeedbackAndStatus());
     }
 
     // Listen for Ctrl+Shift+L from main process
@@ -203,12 +230,62 @@ const Renderer = {
    * @param {string} emoji
    */
   handleReaction(emoji) {
-    // Spawn floating emoji
+    // Spawn floating emoji on primary display
     this.animator.spawn(emoji);
+
+    // Broadcast to secondary displays
+    if (window.electronAPI && window.electronAPI.broadcastEmoji) {
+      window.electronAPI.broadcastEmoji(emoji);
+    }
 
     // Update counter
     this.reactionCount++;
     this.updateCounter();
+  },
+
+  /**
+   * Handle incoming pace feedback
+   * @param {string} pace - slow, good, or fast
+   */
+  handlePaceFeedback(pace) {
+    // Map pace to emoji
+    const paceEmojis = {
+      slow: '🐢',
+      good: '👍',
+      fast: '🐇'
+    };
+
+    const emoji = paceEmojis[pace];
+    if (emoji) {
+      // Spawn the pace emoji on primary display
+      this.animator.spawn(emoji);
+
+      // Broadcast to secondary displays
+      if (window.electronAPI && window.electronAPI.broadcastEmoji) {
+        window.electronAPI.broadcastEmoji(emoji);
+      }
+    }
+
+    // Track pace counts
+    if (this.paceCount[pace] !== undefined) {
+      this.paceCount[pace]++;
+    }
+
+    // Update pace display in status overlay if it's visible
+    this.updatePaceDisplay();
+  },
+
+  /**
+   * Update pace display in status overlay
+   */
+  updatePaceDisplay() {
+    const slowEl = document.getElementById('pace-slow-count');
+    const goodEl = document.getElementById('pace-good-count');
+    const fastEl = document.getElementById('pace-fast-count');
+
+    if (slowEl) slowEl.textContent = this.paceCount.slow;
+    if (goodEl) goodEl.textContent = this.paceCount.good;
+    if (fastEl) fastEl.textContent = this.paceCount.fast;
   },
 
   /**
@@ -302,6 +379,9 @@ const Renderer = {
       reactionCountEl.textContent = this.reactionCount;
     }
 
+    // Update pace display
+    this.updatePaceDisplay();
+
     this.statusOverlay.classList.remove('hidden');
 
     // Disable click-through mode
@@ -346,6 +426,7 @@ const Renderer = {
     this.isListening = false;
     this.currentRoomCode = null;
     this.reactionCount = 0;
+    this.paceCount = { slow: 0, good: 0, fast: 0 };
 
     // Update counter display
     if (this.counterValue) {
@@ -394,6 +475,183 @@ const Renderer = {
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
       this.handleReaction(emoji);
     }, 500);
+  },
+
+  /**
+   * Show the feedback overlay and load feedback data
+   */
+  async showFeedbackOverlay() {
+    if (!this.feedbackOverlay) return;
+
+    // Hide status overlay
+    this.statusOverlay.classList.add('hidden');
+
+    // Show feedback overlay
+    this.feedbackOverlay.classList.remove('hidden');
+
+    // Load feedback data
+    await this.loadFeedbackData();
+  },
+
+  /**
+   * Hide the feedback overlay and return to status overlay
+   */
+  hideFeedbackOverlay() {
+    if (!this.feedbackOverlay) return;
+
+    this.feedbackOverlay.classList.add('hidden');
+    this.statusOverlay.classList.remove('hidden');
+  },
+
+  /**
+   * Close both feedback and status overlays
+   */
+  closeFeedbackAndStatus() {
+    if (this.feedbackOverlay) {
+      this.feedbackOverlay.classList.add('hidden');
+    }
+    this.hideStatusOverlay();
+  },
+
+  /**
+   * Load feedback data from Firebase
+   */
+  async loadFeedbackData() {
+    const commentsContainer = document.getElementById('feedback-comments');
+    if (commentsContainer) {
+      commentsContainer.innerHTML = '<p class="feedback-loading">Loading feedback...</p>';
+    }
+
+    try {
+      // Fetch feedback from Firebase
+      const feedbackData = await this.listener.getFeedbackStats();
+
+      if (!feedbackData) {
+        this.displayNoFeedback();
+        return;
+      }
+
+      // Update stats display
+      this.updateFeedbackStats(feedbackData);
+
+      // Update comments
+      this.updateFeedbackComments(feedbackData.recentFeedback || []);
+
+    } catch (error) {
+      console.error('Error loading feedback:', error);
+      if (commentsContainer) {
+        commentsContainer.innerHTML = '<p class="feedback-loading">Error loading feedback</p>';
+      }
+    }
+  },
+
+  /**
+   * Display when no feedback is available
+   */
+  displayNoFeedback() {
+    const avgRatingEl = document.getElementById('feedback-avg-rating');
+    const totalCountEl = document.getElementById('feedback-total-count');
+    const commentsContainer = document.getElementById('feedback-comments');
+
+    if (avgRatingEl) avgRatingEl.textContent = '-';
+    if (totalCountEl) totalCountEl.textContent = '0 reviews';
+    if (commentsContainer) {
+      commentsContainer.innerHTML = '<p class="feedback-empty">No feedback yet</p>';
+    }
+
+    // Reset stars
+    const stars = document.querySelectorAll('#feedback-stars .star-display');
+    stars.forEach(star => star.classList.remove('filled'));
+
+    // Reset distribution bars
+    for (let i = 1; i <= 5; i++) {
+      const bar = document.getElementById(`rating-bar-${i}`);
+      const count = document.getElementById(`rating-count-${i}`);
+      if (bar) bar.style.width = '0%';
+      if (count) count.textContent = '0';
+    }
+  },
+
+  /**
+   * Update feedback statistics display
+   * @param {Object} data - Feedback data
+   */
+  updateFeedbackStats(data) {
+    const avgRatingEl = document.getElementById('feedback-avg-rating');
+    const totalCountEl = document.getElementById('feedback-total-count');
+
+    if (avgRatingEl) {
+      avgRatingEl.textContent = data.averageRating ? data.averageRating.toFixed(1) : '-';
+    }
+    if (totalCountEl) {
+      totalCountEl.textContent = `${data.totalCount || 0} reviews`;
+    }
+
+    // Update star display
+    const avgRating = Math.round(data.averageRating || 0);
+    const stars = document.querySelectorAll('#feedback-stars .star-display');
+    stars.forEach((star, index) => {
+      star.textContent = index < avgRating ? '★' : '☆';
+      star.classList.toggle('filled', index < avgRating);
+    });
+
+    // Update distribution bars
+    const distribution = data.ratingDistribution || {};
+    const maxCount = Math.max(...Object.values(distribution), 1);
+
+    for (let i = 1; i <= 5; i++) {
+      const count = distribution[i] || 0;
+      const percentage = (count / maxCount) * 100;
+      const bar = document.getElementById(`rating-bar-${i}`);
+      const countEl = document.getElementById(`rating-count-${i}`);
+
+      if (bar) bar.style.width = `${percentage}%`;
+      if (countEl) countEl.textContent = count;
+    }
+  },
+
+  /**
+   * Update feedback comments display
+   * @param {Array} comments - Array of feedback comments
+   */
+  updateFeedbackComments(comments) {
+    const container = document.getElementById('feedback-comments');
+    if (!container) return;
+
+    if (!comments || comments.length === 0) {
+      container.innerHTML = '<p class="feedback-empty">No written feedback yet</p>';
+      return;
+    }
+
+    container.innerHTML = comments.map(comment => {
+      const stars = '★'.repeat(comment.rating) + '☆'.repeat(5 - comment.rating);
+      const date = new Date(comment.timestamp).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+
+      return `
+        <div class="feedback-comment">
+          <div class="feedback-comment-header">
+            <span class="feedback-comment-rating">${stars}</span>
+            <span class="feedback-comment-date">${date}</span>
+          </div>
+          <p class="feedback-comment-text">${this.escapeHtml(comment.text)}</p>
+        </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Escape HTML to prevent XSS
+   * @param {string} text
+   * @returns {string}
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 };
 

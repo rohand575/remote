@@ -12,8 +12,21 @@ const App = {
   leaveBtn: null,
   roomName: null,
   emojiButtons: null,
+  paceButtons: null,
   statusText: null,
   statusDot: null,
+
+  // Feedback elements
+  feedbackToggle: null,
+  feedbackModal: null,
+  feedbackClose: null,
+  stars: null,
+  feedbackText: null,
+  charCount: null,
+  submitFeedback: null,
+  feedbackStatus: null,
+  ratingText: null,
+  selectedRating: 0,
 
   /**
    * Initialize the app
@@ -27,8 +40,20 @@ const App = {
     this.leaveBtn = document.getElementById('leave-btn');
     this.roomName = document.getElementById('room-name');
     this.emojiButtons = document.querySelectorAll('.emoji-btn');
+    this.paceButtons = document.querySelectorAll('.pace-btn');
     this.statusText = document.getElementById('status-text');
     this.statusDot = document.querySelector('.status-dot');
+
+    // Feedback elements
+    this.feedbackToggle = document.getElementById('feedback-toggle');
+    this.feedbackModal = document.getElementById('feedback-modal');
+    this.feedbackClose = document.getElementById('feedback-close');
+    this.stars = document.querySelectorAll('.star');
+    this.feedbackText = document.getElementById('feedback-text');
+    this.charCount = document.getElementById('char-count');
+    this.submitFeedbackBtn = document.getElementById('submit-feedback');
+    this.feedbackStatus = document.getElementById('feedback-status');
+    this.ratingText = document.getElementById('rating-text');
 
     // Initialize modules
     Animations.init();
@@ -77,12 +102,62 @@ const App = {
       });
     });
 
+    // Pace buttons
+    this.paceButtons.forEach(btn => {
+      btn.addEventListener('click', () => this.handlePaceTap(btn));
+
+      // Prevent double-tap zoom on mobile
+      btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        this.handlePaceTap(btn);
+      });
+    });
+
     // Handle visibility change (reconnect when app comes back to foreground)
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         this.updateStatus(FirebaseClient.getConnectionStatus());
       }
     });
+
+    // Feedback modal toggle
+    if (this.feedbackToggle) {
+      this.feedbackToggle.addEventListener('click', () => this.openFeedbackModal());
+    }
+
+    // Feedback close button
+    if (this.feedbackClose) {
+      this.feedbackClose.addEventListener('click', () => this.closeFeedbackModal());
+    }
+
+    // Click outside modal to close
+    if (this.feedbackModal) {
+      this.feedbackModal.addEventListener('click', (e) => {
+        if (e.target === this.feedbackModal) {
+          this.closeFeedbackModal();
+        }
+      });
+    }
+
+    // Star rating
+    this.stars.forEach(star => {
+      star.addEventListener('click', () => this.handleStarClick(star));
+      star.addEventListener('mouseenter', () => this.handleStarHover(star));
+      star.addEventListener('mouseleave', () => this.handleStarLeave());
+    });
+
+    // Feedback text character count
+    if (this.feedbackText) {
+      this.feedbackText.addEventListener('input', () => {
+        const length = this.feedbackText.value.length;
+        this.charCount.textContent = `${length}/500`;
+      });
+    }
+
+    // Submit feedback
+    if (this.submitFeedbackBtn) {
+      this.submitFeedbackBtn.addEventListener('click', () => this.submitFeedback());
+    }
   },
 
   /**
@@ -190,6 +265,29 @@ const App = {
   },
 
   /**
+   * Handle pace button tap
+   * @param {HTMLElement} btn - The button that was tapped
+   */
+  async handlePaceTap(btn) {
+    const pace = btn.dataset.pace;
+    if (!pace) return;
+
+    // Show visual feedback immediately (optimistic UI)
+    Animations.pressButton(btn);
+
+    // Get the icon to show in animation
+    const icon = btn.querySelector('.pace-icon').textContent;
+    Animations.showSent(icon);
+
+    // Send to Firebase
+    const sent = await FirebaseClient.sendPaceFeedback(pace);
+
+    if (!sent) {
+      console.log('Pace feedback not sent (rate limited or error)');
+    }
+  },
+
+  /**
    * Update connection status display
    * @param {boolean} connected
    */
@@ -225,6 +323,114 @@ const App = {
     document.head.appendChild(style);
 
     setTimeout(() => style.remove(), 400);
+  },
+
+  /**
+   * Open the feedback modal
+   */
+  openFeedbackModal() {
+    this.feedbackModal.classList.remove('hidden');
+    this.resetFeedbackForm();
+  },
+
+  /**
+   * Close the feedback modal
+   */
+  closeFeedbackModal() {
+    this.feedbackModal.classList.add('hidden');
+  },
+
+  /**
+   * Reset the feedback form
+   */
+  resetFeedbackForm() {
+    this.selectedRating = 0;
+    this.stars.forEach(star => star.classList.remove('active'));
+    this.ratingText.textContent = 'Tap to rate';
+    if (this.feedbackText) {
+      this.feedbackText.value = '';
+      this.charCount.textContent = '0/500';
+    }
+    this.submitFeedbackBtn.disabled = true;
+    this.feedbackStatus.textContent = '';
+    this.feedbackStatus.className = 'feedback-status';
+  },
+
+  /**
+   * Handle star click
+   * @param {HTMLElement} star
+   */
+  handleStarClick(star) {
+    const rating = parseInt(star.dataset.rating);
+    this.selectedRating = rating;
+
+    // Update star display
+    this.stars.forEach(s => {
+      const r = parseInt(s.dataset.rating);
+      s.classList.toggle('active', r <= rating);
+    });
+
+    // Update rating text
+    const ratingTexts = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'];
+    this.ratingText.textContent = ratingTexts[rating];
+
+    // Enable submit button
+    this.submitFeedbackBtn.disabled = false;
+  },
+
+  /**
+   * Handle star hover
+   * @param {HTMLElement} star
+   */
+  handleStarHover(star) {
+    const rating = parseInt(star.dataset.rating);
+    this.stars.forEach(s => {
+      const r = parseInt(s.dataset.rating);
+      s.classList.toggle('hover', r <= rating);
+    });
+  },
+
+  /**
+   * Handle star mouse leave
+   */
+  handleStarLeave() {
+    this.stars.forEach(s => s.classList.remove('hover'));
+  },
+
+  /**
+   * Submit feedback
+   */
+  async submitFeedback() {
+    if (this.selectedRating === 0) return;
+
+    this.submitFeedbackBtn.disabled = true;
+    this.submitFeedbackBtn.textContent = 'Sending...';
+
+    try {
+      const text = this.feedbackText ? this.feedbackText.value : '';
+      const success = await FirebaseClient.sendFeedback(this.selectedRating, text);
+
+      if (success) {
+        this.feedbackStatus.textContent = 'Thank you for your feedback!';
+        this.feedbackStatus.className = 'feedback-status success';
+
+        // Close modal after delay
+        setTimeout(() => {
+          this.closeFeedbackModal();
+        }, 1500);
+      } else {
+        this.feedbackStatus.textContent = 'Failed to send. Please try again.';
+        this.feedbackStatus.className = 'feedback-status error';
+        this.submitFeedbackBtn.disabled = false;
+      }
+    } catch (error) {
+      console.error('Feedback error:', error);
+      this.feedbackStatus.textContent = 'Failed to send. Please try again.';
+      this.feedbackStatus.className = 'feedback-status error';
+      this.submitFeedbackBtn.disabled = false;
+    }
+
+    this.submitFeedbackBtn.textContent = 'Submit Feedback';
   },
 
   /**
