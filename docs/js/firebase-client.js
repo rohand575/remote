@@ -47,6 +47,33 @@ const FirebaseClient = {
   },
 
   /**
+   * Check if a room exists (host is active)
+   * @param {string} code - Room code to check
+   * @returns {Promise<boolean>} - True if room exists and host is active
+   */
+  async checkRoomExists(code) {
+    if (!this.db) {
+      throw new Error('Firebase not initialized');
+    }
+
+    const { ref, get } = window.firebaseModules;
+    const roomCode = code.toLowerCase().trim();
+    const hostRef = ref(this.db, `rooms/${roomCode}/host`);
+
+    try {
+      const snapshot = await get(hostRef);
+      if (snapshot.exists()) {
+        const hostData = snapshot.val();
+        return hostData && hostData.active === true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking room:', error);
+      return false;
+    }
+  },
+
+  /**
    * Set the current room code
    * @param {string} code - Room code to join
    */

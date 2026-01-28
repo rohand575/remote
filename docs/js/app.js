@@ -118,9 +118,18 @@ const App = {
 
     // Disable button during connection
     this.joinBtn.disabled = true;
-    this.joinBtn.textContent = 'Connecting...';
+    this.joinBtn.textContent = 'Checking room...';
 
     try {
+      // Check if room exists (host is active)
+      const roomExists = await FirebaseClient.checkRoomExists(roomCode);
+
+      if (!roomExists) {
+        this.showError('Room not found. Make sure the presenter has started the session.');
+        this.shakeInput();
+        return;
+      }
+
       // Set room in Firebase client
       FirebaseClient.setRoom(roomCode);
 
@@ -136,6 +145,7 @@ const App = {
       this.updateStatus(true);
     } catch (error) {
       console.error('Error joining room:', error);
+      this.showError('Connection error. Please try again.');
       this.updateStatus(false);
     } finally {
       this.joinBtn.disabled = false;
@@ -215,6 +225,42 @@ const App = {
     document.head.appendChild(style);
 
     setTimeout(() => style.remove(), 400);
+  },
+
+  /**
+   * Show an error message to the user
+   * @param {string} message - Error message to display
+   */
+  showError(message) {
+    // Remove existing error if any
+    const existingError = document.querySelector('.error-message');
+    if (existingError) {
+      existingError.remove();
+    }
+
+    // Create error element
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    errorDiv.style.cssText = `
+      color: #ff6b6b;
+      font-size: 14px;
+      margin-top: 12px;
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+    `;
+
+    // Insert after the room input container
+    const inputContainer = document.querySelector('.room-input-container');
+    inputContainer.insertAdjacentElement('afterend', errorDiv);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (errorDiv.parentNode) {
+        errorDiv.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => errorDiv.remove(), 300);
+      }
+    }, 5000);
   }
 };
 

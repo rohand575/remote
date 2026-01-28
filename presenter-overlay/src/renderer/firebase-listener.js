@@ -31,10 +31,13 @@ class FirebaseListener {
         orderByChild,
         startAt,
         onChildAdded,
-        off
+        off,
+        set,
+        remove,
+        onDisconnect
       } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
 
-      this.firebase = { initializeApp, getDatabase, ref, query, orderByChild, startAt, onChildAdded, off };
+      this.firebase = { initializeApp, getDatabase, ref, query, orderByChild, startAt, onChildAdded, off, set, remove, onDisconnect };
 
       // Firebase config - same as audience app
       const firebaseConfig = {
@@ -75,7 +78,17 @@ class FirebaseListener {
 
     this.roomCode = roomCode.toLowerCase().trim();
 
-    const { ref, query, orderByChild, startAt, onChildAdded } = this.firebase;
+    const { ref, query, orderByChild, startAt, onChildAdded, set, onDisconnect } = this.firebase;
+
+    // Create room entry so audience can verify it exists
+    const hostRef = ref(this.db, `rooms/${this.roomCode}/host`);
+    await set(hostRef, {
+      active: true,
+      createdAt: Date.now()
+    });
+
+    // Automatically remove host entry when presenter disconnects
+    onDisconnect(hostRef).remove();
 
     // Only listen to reactions from now onwards (ignore old ones)
     const startTime = Date.now();
@@ -114,10 +127,12 @@ class FirebaseListener {
    * Stop listening to the current room
    */
   stopListening() {
-    if (this.unsubscribe && this.db && this.roomCode) {
-      const { ref, off } = this.firebase;
+    if (this.db && this.roomCode) {
+      const { ref, off, remove } = this.firebase;
       try {
         off(ref(this.db, `rooms/${this.roomCode}/reactions`));
+        // Remove host entry when leaving room
+        remove(ref(this.db, `rooms/${this.roomCode}/host`));
       } catch (e) {
         console.log('Error unsubscribing:', e);
       }
