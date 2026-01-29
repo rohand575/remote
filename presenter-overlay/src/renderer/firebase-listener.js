@@ -1,168 +1,107 @@
 /**
  * Firebase Listener
- * Listens for new reactions from Firebase Realtime Database
+ * Listens for new reactions from Firebase Realtime Database using REST API + SSE
+ * This approach works reliably in Electron without needing the Firebase SDK
  */
 
 class FirebaseListener {
   constructor() {
-    this.db = null;
+    this.baseUrl = 'https://live-reactions-3dea2-default-rtdb.firebaseio.com';
     this.roomCode = null;
-    this.unsubscribe = null;
-    this.paceUnsubscribe = null;
-    this.questionsUnsubscribe = null;
+    this.eventSources = [];
     this.onReaction = null;
     this.onPaceFeedback = null;
     this.onQuestion = null;
     this.onStatusChange = null;
     this.isConnected = false;
-    this.questions = []; // Store questions for display
-
-    // Firebase SDK modules (loaded dynamically)
-    this.firebase = null;
+    this.questions = [];
+    this.startTime = null;
   }
 
   /**
-   * Initialize Firebase
+   * Initialize - just mark as ready (no SDK needed)
    * @returns {Promise<boolean>}
    */
   async init() {
-    try {
-      // Dynamic import of Firebase modules
-      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-      const {
-        getDatabase,
-        ref,
-        query,
-        orderByChild,
-        startAt,
-        onChildAdded,
-        off,
-        set,
-        get,
-        remove,
-        onDisconnect
-      } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js');
-
-      this.firebase = { initializeApp, getDatabase, ref, query, orderByChild, startAt, onChildAdded, off, set, get, remove, onDisconnect };
-
-      // Firebase config - same as audience app
-      const firebaseConfig = {
-        apiKey: "AIzaSyDnNsJ6ko5WrHQYyoym1vs0bERLJA7V1tU",
-        authDomain: "live-reactions-3dea2.firebaseapp.com",
-        databaseURL: "https://live-reactions-3dea2-default-rtdb.firebaseio.com",
-        projectId: "live-reactions-3dea2",
-        storageBucket: "live-reactions-3dea2.firebasestorage.app",
-        messagingSenderId: "590379663125",
-        appId: "1:590379663125:web:12c7c5fbb16f9d77d4331c",
-        measurementId: "G-KSVMJN9GHY"
-      };
-
-      const app = initializeApp(firebaseConfig);
-      this.db = getDatabase(app);
-      this.isConnected = true;
-
-      console.log('Firebase initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('Firebase initialization error:', error);
-      this.isConnected = false;
-      throw error;
-    }
+    console.log('[Firebase] REST API mode - no SDK initialization needed');
+    this.isConnected = true;
+    return true;
   }
 
   /**
-   * Start listening to a room for reactions
+   * Start listening to a room for reactions using Server-Sent Events
    * @param {string} roomCode - The room code to listen to
    */
   async listenToRoom(roomCode) {
-    if (!this.db) {
-      throw new Error('Firebase not initialized');
-    }
-
-    // Stop any existing listener
+    // Stop any existing listeners
     this.stopListening();
 
     this.roomCode = roomCode.toLowerCase().trim();
+    this.startTime = Date.now();
+    console.log(`[Firebase] Starting connection to room: ${this.roomCode}`);
 
-    const { ref, query, orderByChild, startAt, onChildAdded, set, onDisconnect } = this.firebase;
+    // Create host entry via REST API
+    console.log('[Firebase] Creating host entry...');
+    try {
+      const hostResponse = await fetch(`${this.baseUrl}/rooms/${this.roomCode}/host.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          active: true,
+          createdAt: Date.now()
+        })
+      });
 
-    // Create room entry so audience can verify it exists
-    const hostRef = ref(this.db, `rooms/${this.roomCode}/host`);
-    await set(hostRef, {
-      active: true,
-      createdAt: Date.now()
-    });
+      if (!hostResponse.ok) {
+        throw new Error(`HTTP ${hostResponse.status}: ${hostResponse.statusText}`);
+      }
+      console.log('[Firebase] Host entry created successfully');
+    } catch (error) {
+      console.error('[Firebase] Failed to create host entry:', error);
+      throw new Error('Failed to connect: ' + error.message);
+    }
 
-    // Automatically remove host entry when presenter disconnects
-    onDisconnect(hostRef).remove();
+    // Set up SSE listeners for reactions, pace, and questions
+    console.log(`[Firebase] startTime set to: ${this.startTime}`);
+    console.log(`[Firebase] onReaction callback exists: ${!!this.onReaction}`);
 
-    // Only listen to reactions from now onwards (ignore old ones)
-    const startTime = Date.now();
-    const reactionsRef = query(
-      ref(this.db, `rooms/${this.roomCode}/reactions`),
-      orderByChild('timestamp'),
-      startAt(startTime)
-    );
+    this.setupSSEListener('reactions', (data, key) => {
+      console.log(`[Firebase] Reaction callback triggered:`, data, `key: ${key}`);
+      console.log(`[Firebase] Timestamp check: ${data?.timestamp} >= ${this.startTime} = ${data?.timestamp >= this.startTime}`);
 
-    console.log(`Listening to room: ${this.roomCode} from timestamp: ${startTime}`);
-
-    // Store the reference for cleanup
-    this.unsubscribe = onChildAdded(reactionsRef, (snapshot) => {
-      const data = snapshot.val();
       if (data && data.emoji) {
-        console.log('Received reaction:', data.emoji);
+        // Only filter by timestamp for non-initial data (when path is not '/')
+        // For new reactions, always process them
+        console.log('[Firebase] Processing reaction:', data.emoji);
         if (this.onReaction) {
           this.onReaction(data.emoji);
+        } else {
+          console.error('[Firebase] onReaction callback is not set!');
         }
-      }
-    }, (error) => {
-      console.error('Firebase listener error:', error);
-      this.isConnected = false;
-      if (this.onStatusChange) {
-        this.onStatusChange(false);
       }
     });
 
-    // Listen for pace feedback
-    const paceRef = query(
-      ref(this.db, `rooms/${this.roomCode}/pace`),
-      orderByChild('timestamp'),
-      startAt(startTime)
-    );
-
-    this.paceUnsubscribe = onChildAdded(paceRef, (snapshot) => {
-      const data = snapshot.val();
+    this.setupSSEListener('pace', (data, key) => {
+      console.log(`[Firebase] Pace callback triggered:`, data);
       if (data && data.pace) {
-        console.log('Received pace feedback:', data.pace);
+        console.log('[Firebase] Processing pace:', data.pace);
         if (this.onPaceFeedback) {
           this.onPaceFeedback(data.pace);
         }
       }
-    }, (error) => {
-      console.error('Firebase pace listener error:', error);
     });
 
-    // Listen for questions
-    const questionsRef = query(
-      ref(this.db, `rooms/${this.roomCode}/questions`),
-      orderByChild('timestamp'),
-      startAt(startTime)
-    );
-
-    this.questionsUnsubscribe = onChildAdded(questionsRef, (snapshot) => {
-      const data = snapshot.val();
-      const id = snapshot.key;
+    this.setupSSEListener('questions', (data, key) => {
+      console.log(`[Firebase] Question callback triggered:`, data);
       if (data && data.text) {
-        console.log('Received question:', data.text);
-        // Store question with its ID
+        console.log('[Firebase] Processing question:', data.text);
         const question = {
-          id: id,
+          id: key,
           text: data.text,
           timestamp: data.timestamp,
           answered: data.answered || false
         };
-        this.questions.unshift(question); // Add to beginning
-        // Keep only last 50 questions
+        this.questions.unshift(question);
         if (this.questions.length > 50) {
           this.questions.pop();
         }
@@ -170,37 +109,110 @@ class FirebaseListener {
           this.onQuestion(question);
         }
       }
-    }, (error) => {
-      console.error('Firebase questions listener error:', error);
     });
 
     this.isConnected = true;
+    console.log('[Firebase] Connection established, all listeners active');
     if (this.onStatusChange) {
       this.onStatusChange(true);
     }
   }
 
   /**
+   * Set up a Server-Sent Events listener for a specific path
+   * Firebase SSE uses 'put' and 'patch' events, not standard 'message'
+   * @param {string} path - The path to listen to (reactions, pace, questions)
+   * @param {Function} callback - Called with (data, key) for each new item
+   */
+  setupSSEListener(path, callback) {
+    const url = `${this.baseUrl}/rooms/${this.roomCode}/${path}.json`;
+    console.log(`[Firebase] Setting up SSE listener for ${path}`);
+
+    const eventSource = new EventSource(url);
+    let initialLoadComplete = false;
+
+    eventSource.onopen = () => {
+      console.log(`[Firebase] SSE connection opened for ${path}`);
+    };
+
+    // Firebase sends 'put' events for data changes
+    eventSource.addEventListener('put', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log(`[Firebase] SSE put event for ${path}:`, message.path);
+
+        if (message.path === '/') {
+          // Initial data load - skip old items, just mark as loaded
+          console.log(`[Firebase] Initial data load for ${path} - skipping old items`);
+          initialLoadComplete = true;
+        } else {
+          // Individual item added/updated (path like "/-OkXyz123")
+          // Only process if initial load is complete (new items)
+          if (initialLoadComplete) {
+            const key = message.path.replace(/^\//, '');
+            if (message.data) {
+              callback(message.data, key);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[Firebase] SSE put parse error for ${path}:`, e);
+      }
+    });
+
+    // Firebase sends 'patch' events for partial updates
+    eventSource.addEventListener('patch', (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log(`[Firebase] SSE patch event for ${path}:`, message.path);
+
+        // Patch events are always for updates, process them
+        if (message.data && typeof message.data === 'object') {
+          Object.entries(message.data).forEach(([key, value]) => {
+            callback(value, key);
+          });
+        }
+      } catch (e) {
+        console.error(`[Firebase] SSE patch parse error for ${path}:`, e);
+      }
+    });
+
+    // Keep-alive events (can be ignored)
+    eventSource.addEventListener('keep-alive', () => {
+      // Firebase sends these periodically to keep connection alive
+    });
+
+    eventSource.onerror = (error) => {
+      console.error(`[Firebase] SSE error for ${path}:`, error);
+    };
+
+    this.eventSources.push(eventSource);
+  }
+
+  /**
    * Stop listening to the current room
    */
   stopListening() {
-    if (this.db && this.roomCode) {
-      const { ref, off, remove } = this.firebase;
+    // Close all SSE connections
+    this.eventSources.forEach(es => {
       try {
-        off(ref(this.db, `rooms/${this.roomCode}/reactions`));
-        off(ref(this.db, `rooms/${this.roomCode}/pace`));
-        off(ref(this.db, `rooms/${this.roomCode}/questions`));
-        // Remove host entry when leaving room
-        remove(ref(this.db, `rooms/${this.roomCode}/host`));
+        es.close();
       } catch (e) {
-        console.log('Error unsubscribing:', e);
+        console.log('Error closing EventSource:', e);
       }
-      this.unsubscribe = null;
-      this.paceUnsubscribe = null;
-      this.questionsUnsubscribe = null;
+    });
+    this.eventSources = [];
+
+    // Remove host entry
+    if (this.roomCode) {
+      fetch(`${this.baseUrl}/rooms/${this.roomCode}/host.json`, {
+        method: 'DELETE'
+      }).catch(e => console.log('Error removing host:', e));
     }
+
     this.roomCode = null;
     this.questions = [];
+    this.isConnected = false;
   }
 
   /**
@@ -248,12 +260,14 @@ class FirebaseListener {
    * @param {string} questionId
    */
   async markQuestionAnswered(questionId) {
-    if (!this.db || !this.roomCode) return;
+    if (!this.roomCode) return;
 
-    const { ref, set } = this.firebase;
     try {
-      const questionRef = ref(this.db, `rooms/${this.roomCode}/questions/${questionId}/answered`);
-      await set(questionRef, true);
+      await fetch(`${this.baseUrl}/rooms/${this.roomCode}/questions/${questionId}/answered.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(true)
+      });
 
       // Update local state
       const question = this.questions.find(q => q.id === questionId);
@@ -286,21 +300,17 @@ class FirebaseListener {
    * @returns {Promise<Object>} Feedback stats object
    */
   async getFeedbackStats() {
-    if (!this.db) {
-      throw new Error('Firebase not initialized');
-    }
-
-    const { ref, get } = this.firebase;
-
     try {
-      const feedbackRef = ref(this.db, 'feedback');
-      const snapshot = await get(feedbackRef);
+      const response = await fetch(`${this.baseUrl}/feedback.json`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-      if (!snapshot.exists()) {
+      const feedback = await response.json();
+      if (!feedback) {
         return null;
       }
 
-      const feedback = snapshot.val();
       const feedbackArray = Object.values(feedback);
       const totalCount = feedbackArray.length;
 

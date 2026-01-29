@@ -24,6 +24,8 @@ const Renderer = {
   reactionCount: 0,
   paceCount: { slow: 0, good: 0, fast: 0 },
   isListening: false,
+  isConnecting: false,
+  connectionAborted: false,
   currentRoomCode: null,
   reactionsEnabled: true, // Toggle for showing reactions on screen
 
@@ -227,12 +229,38 @@ const Renderer = {
       return;
     }
 
-    this.startBtn.disabled = true;
-    this.startBtn.textContent = 'Connecting...';
+    // If already connecting, cancel the connection
+    if (this.isConnecting) {
+      this.cancelConnection();
+      return;
+    }
+
+    this.isConnecting = true;
+    this.connectionAborted = false;
+    this.startBtn.textContent = 'Cancel';
+    this.startBtn.classList.add('cancel-btn');
     this.updateStatus('Connecting...', false);
+
+    // Set a connection timeout (10 seconds)
+    const CONNECTION_TIMEOUT = 10000;
+    const timeoutId = setTimeout(() => {
+      if (this.isConnecting && !this.connectionAborted) {
+        console.log('Connection timed out');
+        this.cancelConnection();
+        this.updateStatus('Connection timed out', false, true);
+      }
+    }, CONNECTION_TIMEOUT);
 
     try {
       await this.listener.listenToRoom(roomCode);
+
+      // Check if connection was aborted while waiting
+      if (this.connectionAborted) {
+        this.listener.stopListening();
+        return;
+      }
+
+      clearTimeout(timeoutId);
       this.isListening = true;
       this.currentRoomCode = roomCode;
       this.updateStatus(`Connected to ${roomCode.toUpperCase()}`, true);
@@ -245,12 +273,28 @@ const Renderer = {
       this.updateCounter();
 
     } catch (error) {
-      console.error('Error starting listener:', error);
-      this.updateStatus('Connection failed', false, true);
+      clearTimeout(timeoutId);
+      if (!this.connectionAborted) {
+        console.error('Error starting listener:', error);
+        this.updateStatus('Connection failed', false, true);
+      }
     } finally {
-      this.startBtn.disabled = false;
+      this.isConnecting = false;
       this.startBtn.textContent = 'Start';
+      this.startBtn.classList.remove('cancel-btn');
     }
+  },
+
+  /**
+   * Cancel an ongoing connection attempt
+   */
+  cancelConnection() {
+    this.connectionAborted = true;
+    this.isConnecting = false;
+    this.listener.stopListening();
+    this.startBtn.textContent = 'Start';
+    this.startBtn.classList.remove('cancel-btn');
+    this.updateStatus('Cancelled', false);
   },
 
   /**
@@ -382,11 +426,22 @@ const Renderer = {
    * Update the reaction counter display
    */
   updateCounter() {
+    console.log('[Renderer] updateCounter called, count:', this.reactionCount);
+
+    // Update corner counter
     if (this.counterValue) {
       this.counterValue.textContent = this.reactionCount;
     }
     if (this.reactionCounter && this.reactionCount > 0) {
       this.reactionCounter.classList.remove('hidden');
+    }
+
+    // Always update status overlay counter (even when hidden, so it's ready when shown)
+    const statusReactionCount = document.getElementById('status-reaction-count');
+    console.log('[Renderer] status-reaction-count element:', statusReactionCount);
+    if (statusReactionCount) {
+      statusReactionCount.textContent = this.reactionCount;
+      console.log('[Renderer] Updated status overlay counter to:', this.reactionCount);
     }
   },
 

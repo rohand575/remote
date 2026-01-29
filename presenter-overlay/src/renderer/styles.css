@@ -183,6 +183,14 @@ html, body {
   transform: none;
 }
 
+#start-btn.cancel-btn {
+  background: var(--error);
+}
+
+#start-btn.cancel-btn:hover {
+  background: #dc2626;
+}
+
 .status {
   display: flex;
   align-items: center;
