@@ -426,8 +426,6 @@ const Renderer = {
    * Update the reaction counter display
    */
   updateCounter() {
-    console.log('[Renderer] updateCounter called, count:', this.reactionCount);
-
     // Update corner counter
     if (this.counterValue) {
       this.counterValue.textContent = this.reactionCount;
@@ -436,12 +434,10 @@ const Renderer = {
       this.reactionCounter.classList.remove('hidden');
     }
 
-    // Always update status overlay counter (even when hidden, so it's ready when shown)
-    const statusReactionCount = document.getElementById('status-reaction-count');
-    console.log('[Renderer] status-reaction-count element:', statusReactionCount);
-    if (statusReactionCount) {
-      statusReactionCount.textContent = this.reactionCount;
-      console.log('[Renderer] Updated status overlay counter to:', this.reactionCount);
+    // Update status overlay large counter
+    const statusReactionCountLarge = document.getElementById('status-reaction-count-large');
+    if (statusReactionCountLarge) {
+      statusReactionCountLarge.textContent = this.reactionCount;
     }
   },
 
@@ -509,7 +505,7 @@ const Renderer = {
     const roomCodeEl = document.getElementById('status-room-code');
     const statusDotEl = document.getElementById('status-overlay-dot');
     const statusTextEl = document.getElementById('status-overlay-text');
-    const reactionCountEl = document.getElementById('status-reaction-count');
+    const reactionCountLargeEl = document.getElementById('status-reaction-count-large');
     const reactionsToggle = document.getElementById('reactions-toggle');
 
     if (roomCodeEl) {
@@ -521,8 +517,8 @@ const Renderer = {
     if (statusTextEl) {
       statusTextEl.textContent = this.isListening ? 'Connected' : 'Disconnected';
     }
-    if (reactionCountEl) {
-      reactionCountEl.textContent = this.reactionCount;
+    if (reactionCountLargeEl) {
+      reactionCountLargeEl.textContent = this.reactionCount;
     }
 
     // Update reactions toggle state

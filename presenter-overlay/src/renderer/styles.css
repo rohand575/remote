@@ -427,6 +427,42 @@ html, body {
 }
 
 /* ===========================================
+   Reactions Status
+   =========================================== */
+
+.reactions-status {
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.reactions-status-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.reactions-count-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.reactions-count-large {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  line-height: 1;
+}
+
+.reactions-count-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* ===========================================
    Workshop Pace Status
    =========================================== */
 
