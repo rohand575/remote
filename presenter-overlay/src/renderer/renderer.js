@@ -27,7 +27,8 @@ const Renderer = {
   isConnecting: false,
   connectionAborted: false,
   currentRoomCode: null,
-  reactionsEnabled: true, // Toggle for showing reactions on screen
+  reactionsEnabled: true, // Toggle for showing reactions on primary screen
+  reactionsEnabledSecondary: true, // Toggle for showing reactions on secondary screens
 
   /**
    * Initialize the renderer
@@ -172,12 +173,21 @@ const Renderer = {
       });
     }
 
-    // Reactions toggle
+    // Reactions toggle (primary screen)
     const reactionsToggle = document.getElementById('reactions-toggle');
     if (reactionsToggle) {
       reactionsToggle.addEventListener('change', (e) => {
         this.reactionsEnabled = e.target.checked;
-        console.log('Reactions display:', this.reactionsEnabled ? 'enabled' : 'disabled');
+        console.log('Primary screen reactions:', this.reactionsEnabled ? 'enabled' : 'disabled');
+      });
+    }
+
+    // Reactions toggle (secondary screens)
+    const reactionsToggleSecondary = document.getElementById('reactions-toggle-secondary');
+    if (reactionsToggleSecondary) {
+      reactionsToggleSecondary.addEventListener('change', (e) => {
+        this.reactionsEnabledSecondary = e.target.checked;
+        console.log('Secondary screen reactions:', this.reactionsEnabledSecondary ? 'enabled' : 'disabled');
       });
     }
 
@@ -302,18 +312,17 @@ const Renderer = {
    * @param {string} emoji
    */
   handleReaction(emoji) {
-    // Only spawn if reactions are enabled
+    // Spawn on primary display only if reactions are enabled
     if (this.reactionsEnabled) {
-      // Spawn floating emoji on primary display
       this.animator.spawn(emoji);
-
-      // Broadcast to secondary displays
-      if (window.electronAPI && window.electronAPI.broadcastEmoji) {
-        window.electronAPI.broadcastEmoji(emoji);
-      }
     }
 
-    // Always update counter (even if display is off)
+    // Broadcast to secondary displays if enabled
+    if (this.reactionsEnabledSecondary && window.electronAPI && window.electronAPI.broadcastEmoji) {
+      window.electronAPI.broadcastEmoji(emoji);
+    }
+
+    // Always update counter
     this.reactionCount++;
     this.updateCounter();
   },
@@ -331,12 +340,14 @@ const Renderer = {
     };
 
     const emoji = paceEmojis[pace];
-    if (emoji && this.reactionsEnabled) {
-      // Spawn the pace emoji on primary display (only if enabled)
-      this.animator.spawn(emoji);
+    if (emoji) {
+      // Spawn on primary display only if reactions are enabled
+      if (this.reactionsEnabled) {
+        this.animator.spawn(emoji);
+      }
 
-      // Broadcast to secondary displays
-      if (window.electronAPI && window.electronAPI.broadcastEmoji) {
+      // Broadcast to secondary displays if enabled
+      if (this.reactionsEnabledSecondary && window.electronAPI && window.electronAPI.broadcastEmoji) {
         window.electronAPI.broadcastEmoji(emoji);
       }
     }
@@ -507,6 +518,7 @@ const Renderer = {
     const statusTextEl = document.getElementById('status-overlay-text');
     const reactionCountLargeEl = document.getElementById('status-reaction-count-large');
     const reactionsToggle = document.getElementById('reactions-toggle');
+    const reactionsToggleSecondary = document.getElementById('reactions-toggle-secondary');
 
     if (roomCodeEl) {
       roomCodeEl.textContent = this.currentRoomCode ? this.currentRoomCode.toUpperCase() : '---';
@@ -521,9 +533,12 @@ const Renderer = {
       reactionCountLargeEl.textContent = this.reactionCount;
     }
 
-    // Update reactions toggle state
+    // Update reactions toggle states
     if (reactionsToggle) {
       reactionsToggle.checked = this.reactionsEnabled;
+    }
+    if (reactionsToggleSecondary) {
+      reactionsToggleSecondary.checked = this.reactionsEnabledSecondary;
     }
 
     // Update pace display
@@ -577,7 +592,8 @@ const Renderer = {
     this.currentRoomCode = null;
     this.reactionCount = 0;
     this.paceCount = { slow: 0, good: 0, fast: 0 };
-    this.reactionsEnabled = true; // Reset toggle
+    this.reactionsEnabled = true; // Reset toggles
+    this.reactionsEnabledSecondary = true;
 
     // Update counter display
     if (this.counterValue) {
@@ -587,10 +603,14 @@ const Renderer = {
       this.reactionCounter.classList.add('hidden');
     }
 
-    // Reset reactions toggle
+    // Reset reactions toggles
     const reactionsToggle = document.getElementById('reactions-toggle');
     if (reactionsToggle) {
       reactionsToggle.checked = true;
+    }
+    const reactionsToggleSecondary = document.getElementById('reactions-toggle-secondary');
+    if (reactionsToggleSecondary) {
+      reactionsToggleSecondary.checked = true;
     }
 
     // Hide status overlay

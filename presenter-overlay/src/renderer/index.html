@@ -68,14 +68,9 @@
             <span id="status-overlay-text">Connected</span>
           </span>
         </div>
-      </div>
-
-      <!-- Reactions Section -->
-      <div class="reactions-status">
-        <p class="reactions-status-title">Reactions</p>
-        <div class="reactions-count-display">
-          <span id="status-reaction-count-large" class="reactions-count-large">0</span>
-          <span class="reactions-count-label">total reactions</span>
+        <div class="status-row">
+          <span class="status-label">Reactions:</span>
+          <span id="status-reaction-count-large" class="status-value">0</span>
         </div>
       </div>
 
@@ -112,12 +107,17 @@
         </div>
       </div>
 
-      <!-- Reactions Toggle -->
+      <!-- Reactions Toggles -->
       <div class="reactions-toggle-section">
         <label class="toggle-label">
           <input type="checkbox" id="reactions-toggle" checked>
           <span class="toggle-slider"></span>
-          <span class="toggle-text">Show Reactions on Screen</span>
+          <span class="toggle-text">Show on Primary Screen</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="reactions-toggle-secondary" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-text">Show on Secondary Screens</span>
         </label>
       </div>
 
